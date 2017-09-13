@@ -1,8 +1,9 @@
-import whois
 import requests
 from datetime import datetime
 import argparse
 from os.path import exists
+from whois import whois
+import socket
 
 
 def load_urls4check(path):
@@ -14,18 +15,22 @@ def load_urls4check(path):
 
 def is_server_respond_with_200(url):
     try:
-        OK_status_code = 200
-        responce = requests.get(url)
-        if responce.status_code == OK_status_code:
+        ok_status_code = 200
+        if requests.get(url).status_code == ok_status_code:
             return True
         else:
             return False
-    except:
+    except requests.HTTPError:
+        return False
+    except requests.ConnectionError:
         return False
 
 
 def get_domain_expiration_date(domain_name):
-    domain = whois.whois(domain_name)
+    try:
+        domain = whois(domain_name)
+    except socket.error:
+        return None
     if type(domain.expiration_date) == list:
         return domain.expiration_date[0].date()
     else:
@@ -47,13 +52,15 @@ def print_urls_information(urls):
         else:
             print('Server did NOT respond with HTTP 200 status')
 
-        current_date = datetime.today()
-        next_month = current_date.replace(month=current_date.month+1).date()
         expiration_date = get_domain_expiration_date(url)
-        if next_month < expiration_date:
-            print('Domain is available for one month at least')
-        else:
-            print('Domain is available until ' + expiration_date)
+        if expiration_date:
+            current_date = datetime.today()
+            next_month = current_date.replace(month=current_date.month + 1).date()
+            if next_month < expiration_date:
+                print('Domain is available for one month at least')
+            else:
+                print('Domain is available until ' + expiration_date)
+
 
 if __name__ == '__main__':
     args = parse_arguments()
